@@ -197,7 +197,7 @@ def visualise_dash():
                       y='New Confirmed',
                       template='none')
         fig.update_layout(title_text='Confirmed Cases over time worldwide',
-                          width=750, height=500)
+                          width=740, height=500)
         return fig
 
     def deaths_line_graph():
@@ -207,7 +207,7 @@ def visualise_dash():
                       y='New Deaths',
                       template='none')
         fig.update_layout(title_text='Confirmed Deaths over time worldwide',
-                          width=750, height=500)
+                          width=740, height=500)
 
         return fig
 
