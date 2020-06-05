@@ -1,6 +1,5 @@
 body {
     font-family: sans-serif;
-    zoom: 100%;
 }
 
 h1{
@@ -144,9 +143,4 @@ h1{
 .fulltable{
     float:left;
     margin-top:40px;
-}
-
-.zoom
-{
-    zoom: 50%;
 }

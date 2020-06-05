@@ -147,6 +147,7 @@ def prepare_data(Confirmed_url, Deaths_url, Recovered_url, total_url, continent_
     # Create a df with the total of most recent data
     total_last_updated_df = total_df.drop(['Lat', 'Long', 'Incident_Rate', 'Mortality_Rate', 'UID', 'ISO3'], axis=1)
     for column in ['Confirmed', 'Deaths', 'Recovered', 'Active']:
+        total_last_updated_df[column] = total_last_updated_df[column].fillna(0)
         total_last_updated_df[column] = total_last_updated_df[column].astype(int)
 
     # Find last date when data was updated
@@ -196,7 +197,7 @@ def visualise_dash():
                       x='Date',
                       y='New Confirmed',
                       template='none')
-        fig.update_layout(title_text='Confirmed Cases over time worldwide',
+        fig.update_layout(title_text='<span style="font-size: 20px; color:black;">Confirmed Cases over time worldwide</span>',
                           width=740, height=500)
         return fig
 
@@ -206,7 +207,7 @@ def visualise_dash():
                       x='Date',
                       y='New Deaths',
                       template='none')
-        fig.update_layout(title_text='Confirmed Deaths over time worldwide',
+        fig.update_layout(title_text='<span style="font-size: 20px; color:black;">Confirmed Deaths over time worldwide</span>',
                           width=740, height=500)
 
         return fig
@@ -266,7 +267,8 @@ def visualise_dash():
                                           style={'width': '200px',
                                                  'textAlign': 'center',
                                                  'color': 'black',
-                                                 'backgroundColor': 'white'})]),
+                                                 'backgroundColor': 'white',
+                                                 'align': 'left'})]),
                                   html.Div(className='dd2', children=[
                                       dcc.Dropdown(
                                           id='casesordeaths3',
@@ -277,7 +279,8 @@ def visualise_dash():
                                           style={'width': '150px',
                                                  'textAlign': 'center',
                                                  'color': 'black',
-                                                 'backgroundColor': 'white'})])]),
+                                                 'backgroundColor': 'white',
+                                                 'align': 'left'})])]),
 
                               html.Div(className='row', children=[
                                   html.Div(className='bar', children=[
@@ -289,8 +292,9 @@ def visualise_dash():
                                   html.Div(className='fulltable', children=[
                                       html.P(children='Highest Cases Worldwide for ' + str(last_updated),
                                              style={"font_size": "23px",
-                                                    "font_color": "grey",
-                                                    'textAlign': 'center'}),
+                                                    "font_color": "black",
+                                                    'textAlign': 'center',
+                                                    'font-family':"Open Sans, verdana, arial, sans-serif"}),
                                       generate_table()]),
                                   html.Div(className='pie', children=[
                                       dcc.Dropdown(
@@ -371,7 +375,7 @@ def visualise_dash():
                                                     (0.85, "#363030"), (0.86, "#363030"),
                                                     (0.87, "#333333"), (1, "#333333")])
         fig.update_layout(
-            title_text='Global Spread of Coronavirus',
+            title_text='<span style="font-size: 20px; color:black;">Global Spread of Coronavirus</span>',
             width=1200,
             height=600,
             title_x=0.5,
@@ -398,7 +402,7 @@ def visualise_dash():
                               color_discrete_sequence=px.colors.qualitative.Safe
                               )
 
-        fig_pie.update_layout(title_text='Total ' + c_or_d2 + ' by Continent',
+        fig_pie.update_layout(title_text='<span style="font-size: 20px; color:black;">Total ' + c_or_d2 + ' by Continent</span>',
                               title_x=0.5,
                               width=700, height=600,
                               geo=dict(
@@ -428,7 +432,7 @@ def visualise_dash():
                      hover_data=['Location', 'Date', 'New ' + c_or_d3],
                      template='none'
                      )
-        fig.update_layout(title_text=c_or_d3 + ' over time per country',
+        fig.update_layout(title_text= '<span style="font-size: 20px; color:black;">' + c_or_d3 + ' over time per country</span>',
                           width=1300, height=500)
 
         status = html.Div(className='secondtable', children=[
