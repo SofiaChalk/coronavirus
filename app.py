@@ -6,6 +6,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dash.dependencies
 import plotly.express as px
+import plotly.graph_objects as go
 
 # Url where data will be found
 Confirmed_url = r'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data' \
@@ -21,6 +22,7 @@ continent_url = r'https://raw.githubusercontent.com/dbouquin/IS_608/master/Nanos
 app = dash.Dash(__name__)
 # Initialise Heroku
 server = app.server
+
 
 def prepare_data(Confirmed_url, Deaths_url, Recovered_url, total_url, continent_url):
     global last_updated_df
@@ -68,6 +70,7 @@ def prepare_data(Confirmed_url, Deaths_url, Recovered_url, total_url, continent_
     Confirmed_df['Date'] = Confirmed_df['Date'].apply(lambda x: datetime.strptime(x, '%m/%d/%y').date())
     Deaths_df['Date'] = Deaths_df['Date'].apply(lambda x: datetime.strptime(x, '%m/%d/%y').date())
     Recovered_df['Date'] = Recovered_df['Date'].apply(lambda x: datetime.strptime(x, '%m/%d/%y').date())
+    total_df['Last Update'] = total_df['Last Update'][0]
     total_df['Last Update'] = total_df['Last Update'].apply(lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S').date())
 
     # Group by as there were a few countries with more than one rows per day (eg.UK for mainland & UK for Isle of Man)
@@ -164,167 +167,57 @@ def prepare_data(Confirmed_url, Deaths_url, Recovered_url, total_url, continent_
 
 
 def visualise_dash():
-
     def generate_table():
         """
         This function creates an HTML.TABLE to illustrate the 10 countries
         with the most cases for today
         :return html.table:
         """
-        formatted_tday_df = last_updated_df.copy().drop(
-            ['Total Confirmed', 'Total Deaths', 'Continent', 'Date', 'Lat', 'Long', 'ISO3'],
-            axis=1).sort_values('New Confirmed', ascending=False)
-        formatted_tday_df['New Confirmed'] = formatted_tday_df['New Confirmed'].apply('{:,}'.format)
-        formatted_tday_df['New Deaths'] = formatted_tday_df['New Deaths'].apply('{:,}'.format)
+        table_df = total_last_updated_df.copy().drop(['Last Update', 'Continent'],
+                                                     axis=1).sort_values('Confirmed', ascending=False)
+        table_df['Confirmed'] = table_df['Confirmed'].apply('{:,}'.format)
+        table_df['Deaths'] = table_df['Deaths'].apply('{:,}'.format)
+        table_df['Recovered'] = table_df['Recovered'].apply('{:,}'.format)
+        table_df['Active'] = table_df['Active'].apply('{:,}'.format)
 
         return dash_table.DataTable(
-            data=formatted_tday_df.to_dict('records'),
-            columns=[{'id': c, 'name': c} for c in formatted_tday_df.columns],
+            data=table_df.to_dict('records'),
+            columns=[{'id': c, 'name': c} for c in table_df.columns],
             style_cell={'padding': '1px', 'textAlign': 'left', 'border': '1px solid rgb(237, 237, 237)',
-                        'width': 'auto', 'font_family': 'sans-serif',
+                        'font_family': 'sans-serif', 'minWidth': '100px', 'width': '100px', 'maxWidth': '100px',
                         'font_size': '16px', 'color': 'rgb(93, 103, 110)'},
-            style_table={'height': '500px', 'width': '600px', 'overflowY': 'auto'},
+            style_table={'height': '600px', 'overflowY': 'auto'},
             style_header={'border': '1px solid rgb(237, 237, 237)', 'backgroundColor': 'white',
                           'fontWeight': 'bold', 'textAlign': 'center', 'color': 'rgb(50, 119, 168)'},
-            style_data={'textAlign': 'center', 'width': 'auto'}
-        )
+            style_data={'textAlign': 'center', 'minWidth': '5px', 'width': '5px', 'maxWidth': '5px'})
 
     def cases_line_graph():
         bar_df = sum_data_daily_df.copy()
         # bar_df.loc[:, 'Cases'] = bar_df.loc[:, 'Cases'].apply('{:,}'.format)
         # bar_df.loc[:, 'Deaths'] = bar_df.loc[:, 'Deaths'].apply('{:,}'.format)
-        fig = px.line(data_frame=bar_df,
-                      x='Date',
-                      y='New Confirmed',
-                      template='none')
-        fig.update_layout(title_text='<span style="font-size: 20px; color:black;">Confirmed Cases over time worldwide</span>',
-                          width=740, height=500)
-        return fig
 
-    def deaths_line_graph():
-        bar_df = sum_data_daily_df.copy()
-        fig = px.line(data_frame=bar_df,
-                      x='Date',
-                      y='New Deaths',
-                      template='none')
-        fig.update_layout(title_text='<span style="font-size: 20px; color:black;">Confirmed Deaths over time worldwide</span>',
-                          width=740, height=500)
+        fig = go.Figure(data=[
+            go.Scatter(name='Cases', marker_color='#3380cc', x=bar_df['Date'], y=bar_df['New Confirmed']),
+            go.Scatter(name='Deaths', marker_color='#cc0066', x=bar_df['Date'], y=bar_df['New Deaths'])])
+
+        fig.update_layout(height=500, template='none',
+                          xaxis=dict(title='Date', showgrid=False),
+                          yaxis=dict(title='Global New Cases & Deaths per day', showgrid=True))
 
         return fig
 
-    # Prepare the page layout
-    app.layout = html.Div(className='overall-background',
-                          children=[
-                              html.H1(children=['COVID-19 Dashboard']),
-                              html.P(children='*Latest Updated on: ' + str(last_updated),
-                                     style={"font_size": "xx-small",
-                                            'textAlign': 'center'}),
-
-                              html.Div(className='row', style={'display': 'inline-block'}, children=[
-                                  html.Div(className='firsttable', children=[
-                                      html.Div(className='newcases_table', children=[
-                                          html.P(html.Strong(f"{last_updated_df['New Confirmed'].sum():,d}")),
-                                          dcc.Markdown('''*New Cases*''')]),
-                                      html.Div(className='totalcases_table', children=[
-                                          html.P(html.Strong(f"{total_last_updated_df['Confirmed'].sum():,d}")),
-                                          dcc.Markdown('''*Total Cases*''')]),
-                                      html.Div(className='newdeaths_table', children=[
-                                          html.P(html.Strong(f"{last_updated_df['New Deaths'].sum():,d}")),
-                                          dcc.Markdown('''*New Deaths*''')]),
-                                      html.Div(className='totaldeaths_table', children=[
-                                          html.P(html.Strong(f"{total_last_updated_df['Deaths'].sum():,d}")),
-                                          dcc.Markdown('''*Total Deaths*''')]),
-                                      html.Div(className='totalactive_table', children=[
-                                          html.P(html.Strong(f"{total_last_updated_df['Active'].sum():,d}")),
-                                          dcc.Markdown('''*Total Active*''')])
-                                  ]),
-                                  html.Div(className='map', children=[
-                                      html.Div(children=[
-                                          dcc.Dropdown(
-                                              id='casesordeaths',
-                                              options=[{'label': 'Confirmed', 'value': 'Confirmed'},
-                                                       {'label': 'Deaths', 'value': 'Deaths'}],
-                                              multi=False,
-                                              value='Confirmed',
-                                              style={'width': '150px',
-                                                     'textAlign': 'center',
-                                                     'color': 'black',
-                                                     'backgroundColor': 'white'}),
-                                          dcc.Graph(id='Interactive Map')])])]),
-                              html.Div(className='row', style={'display': 'inline-block'}, children=[
-                                  html.Div(className='lineC', children=[
-                                      dcc.Graph(figure=cases_line_graph())]),
-                                  html.Div(className='lineD', children=[
-                                      dcc.Graph(figure=deaths_line_graph())])]),
-
-                              html.Div(className='row', style={'display': 'inline-block'}, children=[
-                                  html.Div(className='dd1', children=[
-                                      dcc.Dropdown(
-                                          id='country',
-                                          options=[{'label': i, 'value': i} for i in sorted(shown_countries)],
-                                          multi=False,
-                                          value='United Kingdom',
-                                          style={'width': '200px',
-                                                 'textAlign': 'center',
-                                                 'color': 'black',
-                                                 'backgroundColor': 'white',
-                                                 'align': 'left'})]),
-                                  html.Div(className='dd2', children=[
-                                      dcc.Dropdown(
-                                          id='casesordeaths3',
-                                          options=[{'label': 'Confirmed', 'value': 'Confirmed'},
-                                                   {'label': 'Deaths', 'value': 'Deaths'}],
-                                          multi=False,
-                                          value='Confirmed',
-                                          style={'width': '150px',
-                                                 'textAlign': 'center',
-                                                 'color': 'black',
-                                                 'backgroundColor': 'white',
-                                                 'align': 'left'})])]),
-
-                              html.Div(className='row', children=[
-                                  html.Div(className='bar', children=[
-                                      dcc.Graph(id='Bar1')]),
-                                  html.Div(className='casespercountry', children=[
-                                      html.P(id="status")])]),
-
-                              html.Div(className='row', style={'display': 'inline-block'}, children=[
-                                  html.Div(className='fulltable', children=[
-                                      html.P(children='Highest Cases Worldwide for ' + str(last_updated),
-                                             style={"font_size": "23px",
-                                                    "font_color": "black",
-                                                    'textAlign': 'center',
-                                                    'font-family':"Open Sans, verdana, arial, sans-serif"}),
-                                      generate_table()]),
-                                  html.Div(className='pie', children=[
-                                      dcc.Dropdown(
-                                          id='casesordeaths2',
-                                          options=[{'label': 'Confirmed', 'value': 'Confirmed'},
-                                                   {'label': 'Deaths', 'value': 'Deaths'}],
-                                          multi=False,
-                                          value='Confirmed',
-                                          style={'width': '150px',
-                                                 'textAlign': 'center',
-                                                 'color': 'black',
-                                                 'backgroundColor': 'white'}),
-                                      dcc.Graph(id='Pie')])])])
-
-    @app.callback(dash.dependencies.Output('Interactive Map', 'figure'),
-                  [dash.dependencies.Input('casesordeaths', 'value')])
-    def update_map_graph(c_or_d):
+    def update_map_graph():
         map_df = confirmed_deaths_df.sort_values('Date', ascending=True).copy()
         # map_df.loc[:, 'Cases'] = map_df.loc[:, 'Cases'].apply('{:,}'.format)
         # map_df.loc[:, 'Deaths'] = map_df.loc[:, 'Deaths'].apply('{:,}'.format)
         # map_df['Population'].astype(str)
-        map_df['Total ' + c_or_d] = map_df['Total ' + c_or_d].astype(int)
+        map_df['Total Confirmed'] = map_df['Total Confirmed'].astype(int)
 
-        fig = px.choropleth(data_frame=map_df,
-                            locations="ISO3",
-                            color='Total ' + c_or_d,
-                            hover_name='Location',
-                            hover_data=["Location", 'Date', 'Total ' + c_or_d],
+        fig = px.choropleth(locations=map_df["ISO3"],
+                            color=map_df['Total Confirmed'],
+                            hover_name=map_df['Location'],
                             animation_frame=map_df["Date"].astype(str),
-                            range_color=[10, max(map_df['Total ' + c_or_d])],
+                            range_color=[10, max(map_df['Total Confirmed'])],
                             color_continuous_scale=[(0.0, "#ffe6e6"), (0.001, "#ffe6e6"),
                                                     (0.002, "#ffcccc"), (0.003, "#ffcccc"),
                                                     (0.004, "#ffb3b3"), (0.005, "#ffb3b3"),
@@ -374,18 +267,129 @@ def visualise_dash():
                                                     (0.83, "#382e2e"), (0.84, "#382e2e"),
                                                     (0.85, "#363030"), (0.86, "#363030"),
                                                     (0.87, "#333333"), (1, "#333333")])
-        fig.update_layout(
-            title_text='<span style="font-size: 20px; color:black;">Global Spread of Coronavirus</span>',
-            width=1200,
-            height=600,
-            title_x=0.5,
-            margin=dict(l=30, r=30, t=30, b=30),
-            geo=dict(
-                showframe=False,
-                showcoastlines=False
-            ))
+        fig.update_layout(height=600,
+                          title_x=0.5,
+                          geo=dict(
+                              showframe=False,
+                              showcoastlines=False
+                          ))
 
         return fig
+
+    # Prepare the page layout
+    app.layout = html.Div(className='overall-background',
+                          children=[html.Div(className='title1',
+                                             children=[
+                                                 html.H1(children='Global Spread of Coronavirus',
+                                                         style={'textAlign': 'center',
+                                                                'margin_bottom': '1px solid rgb(197, 191, 219)'})]),
+
+                                    html.Div(className='plates', children=[
+                                        html.Div(className='plate', id='NewCases', children=[
+                                            html.H5(children=['New Cases'],
+                                                    style={'color': 'black', 'font-size': '0.7vw',
+                                                           'margin-bottom': '10px'}),
+                                            html.H3(children=[f"{last_updated_df['New Confirmed'].sum():,d}"],
+                                                    style={'color': '#e62e00', 'font-size': '1.5vw',
+                                                           'margin-top': '0px'})]),
+                                        html.Div(className='plate', id='TotalCases', children=[
+                                            html.H5(children=['Total Cases'],
+                                                    style={'color': 'black', 'font-size': '0.7vw',
+                                                           'margin-bottom': '10px'}),
+                                            html.H3(children=[f"{total_last_updated_df['Confirmed'].sum():,d}"],
+                                                    style={'color': '#e62e00', 'font-size': '1.5vw',
+                                                           'margin-top': '0px'})]),
+                                        html.Div(className='plate', id='NewDeaths', children=[
+                                            html.H5(children=['New Deaths'],
+                                                    style={'color': 'black', 'font-size': '0.7vw',
+                                                           'margin-bottom': '10px'}),
+                                            html.H3(children=[f"{last_updated_df['New Deaths'].sum():,d}"],
+                                                    style={'color': '#cc0066', 'font-size': '1.5vw',
+                                                           'margin-top': '0px'})]),
+                                        html.Div(className='plate', id='TotalDeaths', children=[
+                                            html.H5(children=['Total Deaths'],
+                                                    style={'color': 'black', 'font-size': '0.7vw',
+                                                           'margin-bottom': '10px'}),
+                                            html.H3(children=[f"{total_last_updated_df['Deaths'].sum():,d}"],
+                                                    style={'color': '#cc0066', 'font-size': '1.5vw',
+                                                           'margin-top': '0px'})]),
+                                        html.Div(className='plate', id='Active', children=[
+                                            html.H5(children=['Active'], style={'color': 'black', 'font-size': '0.7vw',
+                                                                                'margin-bottom': '10px'}),
+                                            html.H3(children=[f"{total_last_updated_df['Active'].sum():,d}"],
+                                                    style={'color': '#0099cc', 'font-size': '1.5vw',
+                                                           'margin-top': '0px'})]),
+                                        html.Div(className='plate', id='Recovered', children=[
+                                            html.H5(children=['Recovered'],
+                                                    style={'color': 'black', 'font-size': '0.7vw',
+                                                           'margin-bottom': '10px'}),
+                                            html.H3(children=[f"{total_last_updated_df['Recovered'].sum():,d}"],
+                                                    style={'color': '#339966', 'font-size': '1.5vw',
+                                                           'margin-top': '0px'})])]),
+
+                                    html.Div(className='map', children=[
+                                        dcc.Graph(figure=update_map_graph())]),
+
+                                    html.Div(className='title2', children=[
+                                        html.H1(children='Cases vs Deaths over time',
+                                                style={'textAlign': 'center',
+                                                       'margin_bottom': '1px solid rgb(197, 191, 219)'})]),
+
+                                    html.Div(className='row', style={'display': 'inline-block'}, children=[
+                                        html.Div(className='lineC', children=[
+                                            dcc.Graph(figure=cases_line_graph())])]),
+
+                                    html.Div(className='title3', children=[
+                                        html.H1(children='Cases per Country over time',
+                                                style={'textAlign': 'center',
+                                                       'margin_bottom': '1px solid rgb(197, 191, 219)'})]),
+                                    html.Div(className='row', style={'display': 'inline-block'}, children=[
+                                        html.Div(className='casespercountry', children=[
+                                            html.P(id="status")])]),
+                                    html.Div(className='row', style={'display': 'inline-block'}, children=[
+                                        html.Div(className='dd1', children=[
+                                            dcc.Dropdown(
+                                                id='country',
+                                                options=[{'label': i, 'value': i} for i in sorted(shown_countries)],
+                                                multi=False,
+                                                value='United Kingdom',
+                                                style={'textAlign': 'center',
+                                                       'color': 'black',
+                                                       'backgroundColor': 'white'})]),
+                                        html.Div(className='dd2', children=[
+                                            dcc.Dropdown(
+                                                id='casesordeaths3',
+                                                options=[{'label': 'Confirmed', 'value': 'Confirmed'},
+                                                         {'label': 'Deaths', 'value': 'Deaths'}],
+                                                multi=False,
+                                                value='Confirmed',
+                                                style={'width': '150px',
+                                                       'textAlign': 'center',
+                                                       'color': 'black',
+                                                       'backgroundColor': 'white'})]),
+                                        html.Div(className='bar', children=[
+                                            dcc.Graph(id='Bar1')])]),
+
+                                    html.Div(className='title4'),
+
+                                    html.Div(className='row', style={'display': 'inline-block'}, children=[
+                                        html.Div(className='fulltable', children=[
+                                            html.H1(className='title6', children='Cases Worldwide',
+                                                    style={'textAlign': 'center'}),
+                                            generate_table()]),
+                                        html.Div(className='pie', children=[
+                                            html.H1(className='title6', children='Cases/Deaths by Continent',
+                                                    style={'textAlign': 'center'}),
+                                            dcc.Dropdown(
+                                                id='casesordeaths2',
+                                                options=[{'label': 'Confirmed', 'value': 'Confirmed'},
+                                                         {'label': 'Deaths', 'value': 'Deaths'}],
+                                                multi=False,
+                                                value='Confirmed',
+                                                style={'textAlign': 'right',
+                                                       'color': 'black',
+                                                       'backgroundColor': 'white'}),
+                                            dcc.Graph(id='Pie')])])])
 
     @app.callback(dash.dependencies.Output('Pie', 'figure'),
                   [dash.dependencies.Input('casesordeaths2', 'value')])
@@ -402,12 +406,12 @@ def visualise_dash():
                               color_discrete_sequence=px.colors.qualitative.Safe
                               )
 
-        fig_pie.update_layout(title_text='<span style="font-size: 20px; color:black;">Total ' + c_or_d2 + ' by Continent</span>',
-                              title_x=0.5,
-                              width=700, height=600,
-                              geo=dict(
-                                  showframe=False,
-                                  showcoastlines=False))
+        fig_pie.update_layout(
+            title_x=0.5,
+            height=600,
+            geo=dict(
+                showframe=False,
+                showcoastlines=False))
         return fig_pie
 
     @app.callback([dash.dependencies.Output('Bar1', 'figure'),
@@ -420,9 +424,9 @@ def visualise_dash():
 
         # bar1_df.loc[:, 'Cases'] = bar1_df.loc[:, 'Cases'].apply('{:,}'.format)
         # bar1_df.loc[:, 'Deaths'] = bar1_df.loc[:, 'Deaths'].apply('{:,}'.format)
-        pie1_df.loc[:, 'Confirmed'] = pie1_df.loc[:, 'Confirmed'].copy().apply('{:,}'.format)
-        pie1_df.loc[:, 'Deaths'] = pie1_df.loc[:, 'Deaths'].copy().apply('{:,}'.format)
-        pie1_df.loc[:, 'Mortality_Rate'] = pie1_df.loc[:, 'Mortality_Rate'].copy().apply('{:.2f}%'.format)
+        pie1_df.loc[:, 'Confirmed'] = pie1_df.loc[:, 'Confirmed'].copy().astype(int).apply('{:,}'.format)
+        pie1_df.loc[:, 'Deaths'] = pie1_df.loc[:, 'Deaths'].copy().astype(int).apply('{:,}'.format)
+        pie1_df.loc[:, 'Mortality_Rate'] = pie1_df.loc[:, 'Mortality_Rate'].copy().astype(int).apply('{:.2f}%'.format)
 
         fig = px.bar(data_frame=bar1_df,
                      x='Date',
@@ -432,19 +436,29 @@ def visualise_dash():
                      hover_data=['Location', 'Date', 'New ' + c_or_d3],
                      template='none'
                      )
-        fig.update_layout(title_text= '<span style="font-size: 20px; color:black;">' + c_or_d3 + ' over time per country</span>',
-                          width=1300, height=500)
+        fig.update_layout(height=500)
 
-        status = html.Div(className='secondtable', children=[
-            html.Div(className='totalC', children=[
-                html.P(html.Strong(pie1_df['Confirmed'])),
-                dcc.Markdown('''*Total Cases*''')]),
-            html.Div(className='totalD', children=[
-                html.P(html.Strong(pie1_df['Deaths'])),
-                dcc.Markdown('''*Total Deaths*''')]),
-            html.Div(className='percentD', children=[
-                html.P(html.Strong(pie1_df['Mortality_Rate'])),
-                dcc.Markdown('''*% of Deaths*''')])])
+        status = html.Div(className='plates1', id='NewCases', children=[
+            html.Div(className='plate1', id='TotalCases', children=[
+                html.H5(children=['Total Cases'],
+                        style={'color': 'black', 'font-size': '0.7vw',
+                               'margin-bottom': '10px'}),
+                html.H3(children=[pie1_df['Confirmed'].values[0]],
+                        style={'color': '#e62e00', 'font-size': '1.5vw',
+                               'margin-top': '0px'})]),
+            html.Div(className='plate1', id='TotalDeaths', children=[
+                html.H5(children=['Total Deaths'],
+                        style={'color': 'black', 'font-size': '0.7vw',
+                               'margin-bottom': '10px'}),
+                html.H3(children=[pie1_df['Deaths'].values[0]],
+                        style={'color': '#cc0066', 'font-size': '1.5vw',
+                               'margin-top': '0px'})]),
+            html.Div(className='plate1', id='Active', children=[
+                html.H5(children=['% of Deaths'], style={'color': 'black', 'font-size': '0.7vw',
+                                                         'margin-bottom': '10px'}),
+                html.H3(children=[pie1_df['Mortality_Rate'].values[0]],
+                        style={'color': '#0099cc', 'font-size': '1.5vw',
+                               'margin-top': '0px'})])])
 
         return fig, status
 
