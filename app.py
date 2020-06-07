@@ -213,9 +213,11 @@ def visualise_dash():
         # map_df['Population'].astype(str)
         map_df['Total Confirmed'] = map_df['Total Confirmed'].astype(int)
 
-        fig = px.choropleth(locations=map_df["ISO3"],
-                            color=map_df['Total Confirmed'],
-                            hover_name=map_df['Location'],
+        fig = px.choropleth(data_frame=map_df,
+                            locations="ISO3",
+                            color='Total Confirmed',
+                            hover_name='Location',
+                            hover_data={'Total Confirmed':True, 'Total Deaths':True, 'Date':False, 'ISO3':False},
                             animation_frame=map_df["Date"].astype(str),
                             range_color=[10, max(map_df['Total Confirmed'])],
                             color_continuous_scale=[(0.0, "#ffe6e6"), (0.001, "#ffe6e6"),
@@ -402,7 +404,8 @@ def visualise_dash():
         fig_pie = px.sunburst(data_frame=bar_df,
                               path=['Continent', 'Location'],
                               values=c_or_d2,
-                              hover_data=['Location', 'Last Update', c_or_d2],
+                              hover_name=bar_df['Last Update'],
+                              hover_data=['Confirmed', 'Deaths', 'Active', 'Recovered'],
                               color_discrete_sequence=px.colors.qualitative.Safe
                               )
 
